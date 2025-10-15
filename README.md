@@ -1,2 +1,4 @@
 # A miniature analysis people's food preferences as year goes by
-This Model classifies which food fall into the more healthier category or a less healthy one by letting the user write the nutrition values, its does overall judging, so it won't flush out a food from the healthy category maybe because it had more fat, but will analyze the nutrients that are good.
+
+A rather simpler analysis of a small dataset that I found online, so I thought of analyzing it for fun.
+I have used R programming language to move through the dataset by making it tidy, plot interesting graphs and finally find valuable insights from the dataset.
