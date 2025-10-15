@@ -72,7 +72,7 @@ In the following chunk, please `select()` only the following columns:
     - value = OBS_VALUE
 ```
 
-In the same chunk, let's tidy the dataframe using `pivot_wider()` with these arguments:
+-   In the same chunk, let's tidy the dataframe using `pivot_wider()` with these arguments:
 
 ```         
    - id_cols = c(country,year),
@@ -80,7 +80,11 @@ In the same chunk, let's tidy the dataframe using `pivot_wider()` with these arg
    - values_from = value
 ```
 
-Make sure that you assign your changes to `dietDf`.
+-   We make sure that we assign our changes to `dietDf`.
+
+<!-- -->
+
+-   Below we have just gotten rid of the `redundancy`.
 
 ```{r, tidy_diet_data1}
 # tidy_diet_data1
@@ -97,7 +101,7 @@ dietDf <- pivot_wider(dietDf,
 dietDf
 ```
 
-Great, but more tidying to do! In this chunk please do:
+Great, but more tidying to do! In this chunk let us do just that:
 
 -   `mutate()` the column `year` to integer,
 -   `rename()` the percentage column to `percent`,
@@ -116,17 +120,17 @@ dietDf
 
 ```
 
-Please explore `dietDf` for tidyness and make any additional changes necessary. After running all chunks, you may do this from the `console` pane, with `View(dietDf)`.
+Now, let us explore `dietDf` for tidyness and make any additional changes necessary. After running all chunks, we may may do this from the `console` pane, with `View(dietDf)`. (`Another way of doing that without using the native code-box`)
 
 Now, let's consider NAs in this dataset. Consider these two results:
 
 ```{r NAs1}
-# uncomment when ready
+# This counts the total number of missing or N/A values in our target column
 sum(is.na(dietDf$countPerCountry))
 sum(is.na(dietDf$percent)&is.na(dietDf$countPerCountry))
 ```
 
-Huh? How can the `countPerCountry` have many NAs, yet the `percent` has none in common with it!? It is clear that the `countPerCountry` values are not missing with malice. If only we can find the population figures for countries per year, we could calculate the missing data! Fortunately, other tables at WorldBank.org contain this information, and I have provided a second `*.csv` in the archive from that table. In the following chunk, we load this `*.csv` and tidy it. Please load this file into the tibble `pop`. Use `pivot_longer()` to create a `year` column, with values from the column headers, and `pop` column, with population figures. Please make sure that `pop$year` has a numerical type. Also, please make sure that `pop$pop` is a numerical measurement, so use `str_replace()` to find and replace the "k"s, "M"s, and "B"s. After that, it may be converted using `as.integer()`.
+Huh? How can the `countPerCountry` have many NAs, yet the `percent` has none in common with it!? It is clear that the `countPerCountry` values are not missing with malice. If only we can find the population figures for countries per year, we could calculate the missing data! Fortunately, other tables at WorldBank.org contain this information, and we happen to have a second `*.csv` in the archive from that table. In the following chunk, we load this `*.csv` and tidy it. Let us load this file into the tibble `pop`. Also now let's use `pivot_longer()` to create a `year` column, with values from the column headers, and `pop` column, with population figures. We also need to make sure that `pop$year` has a numerical type. Alongside, making sure that `pop$pop` is a numerical measurement, so we will use `str_replace()` to find and replace the "k"s, "M"s, and "B"s. After that, it may be converted using `as.integer()`.
 
 ```{r load_and_tidy_pop_data}
 # load_and_tidy_pop_data
@@ -147,7 +151,7 @@ pop <- pop %>%
 pop
 ```
 
-It will be easier to work with one dataframe, rather than 2. In the following chunk, please `left_join()` `dietDf`(left) with `pop`(right).
+It will be easier to work with one dataframe, rather than 2. In the following chunk, let us use `left_join()` to join `dietDf`(left) with `pop`(right).
 
 ```{r left_join_to_pop_data}
 #left_join_to_pop_data
@@ -158,7 +162,7 @@ dietDf
 
 ```
 
-Nice work so far! We have all the data we need in one table. Our current goal is to remove as many of the NAs as the data allows. In the following chunk, use `mutate()` to create a new column `my_count`, found by multiplying `pop` with `percent/100`. Since `pop` also has NAs, this new column will have NAs too.
+Nice work so far! We have all the data we need in one table. Our current goal is to remove as many of the NAs as the data allows. In the following chunk, by using `mutate()` we create a new column `my_count`, found by multiplying `pop` with `percent/100`. Since `pop` also has NAs, this new column will have NAs too.
 
 ```{r calc_my_count_~_pop_data_and_percent}
 # calc_my_count_~_pop_data_and_percent
@@ -166,14 +170,14 @@ Nice work so far! We have all the data we need in one table. Our current goal is
 dietDf <- dietDf %>% mutate(my_count = pop * (percent/100))
 ```
 
-The following chunk gives us hope. Below I calculate the number of rows where both `my_count` and `countPerCountry` are NAs.
+The following chunk gives us hope. Below we have calculated the number of rows where both `my_count` and `countPerCountry` are NAs.
 
 ```{r both_NAs?}
 # uncomment when ready
  sum(is.na(dietDf$my_count) & is.na(dietDf$countPerCountry))
 ```
 
-Super lucky! There is no overlap between the NAs, and we will be able to replace all the NAs in `countPerCounty` with values from `my_count`. Please do that below. At the end of the chunk, please check again for NAs in the amended column `countPerCountry`.
+Super lucky! There is no overlap between the NAs, and we will be able to replace all the NAs in `countPerCounty` with values from `my_count`. At the end of the chunk, we have again checked for NAs in the amended column `countPerCountry`.
 
 ```{r replace_NAs_in_countPerCountry_with_calculated}
 # replace NAs in `countPerCountry`, then check for NAs in same
@@ -182,7 +186,7 @@ dietDf <- dietDf %>% mutate(countPerCountry = if_else(is.na(countPerCountry), my
 sum(is.na(dietDf$countPerCountry))
 ```
 
-One more step for NA replacement! Please amend the column `pop`, which has NAs, with values calculated from `100*countPerCountry` / `percent`. At the end, please recheck for NAs.
+One more step for NA replacement! Let us amend the column `pop`, which has NAs, with values calculated from `100*countPerCountry` / `percent`. At the end, let's recheck for NAs.
 
 ```{r replace_NAs_in_pop_with_calculated}
 #replace_NAs_in_pop_with_calculated
@@ -192,11 +196,11 @@ sum(is.na(dietDf$pop))
 
 ```
 
-Super job! Now that our data is tidy and wrangled, we may begin our EDA. Below, please use `facet_wrap(~year,nrow=1)` to display a sequence of vertical boxplots of `percent`, indexed by `year`.
+Awesome! Now that our data is tidy and wrangled, we may begin our EDA. Below, let us use `facet_wrap(~year,nrow=1)` to display a sequence of vertical boxplots of `percent`, indexed by `year`.
 
 ```{r, boxplots_by_year}
 # boxplots_facetted_by_year
-# assuming your tibble is called pop_data
+# assuming your tibble is called pop_dietDf
 ggplot(dietDf, aes(x = factor(year), y = percent)) +
   geom_boxplot(fill = "green", color = "red", alpha = 0.5) +
   facet_wrap(~year, nrow = 1) +
@@ -208,14 +212,14 @@ ggplot(dietDf, aes(x = factor(year), y = percent)) +
   theme_minimal(base_size = 13) +
   theme(
     strip.text = element_text(size = 10, face = "bold"),
-    axis.text.x = element_blank(),  # optional: hides x-axis text since facets already label them
+    axis.text.x = element_blank(),  # This hides x-axis text since facets already label them
     panel.spacing = unit(1, "lines")
   )
 
 
 ```
 
-Below, please provide two sentences summarizing your observations about the boxplots. What are the differences, if anything, by year? Are there outliers, and if so, when?
+Below, we have provided a few sentences summarizing our observations about the boxplots.
 
 ------\>
 
@@ -225,10 +229,10 @@ Most countries cluster around moderate percent values, although there are quite 
 
 \<------\>
 
-In the following chunk, I create `summaryDf`. This yields per-year results of world population, `worldpop`, and the fraction of the globe's population which can not afford the least expensive healthy diet, `fracWorldPop`.
+In the following chunk, We create `summaryDf`. This yields per-year results of world population, `worldpop`, and the fraction of the globe's population which can not afford the least expensive healthy diet, `fracWorldPop`.
 
 ```{r make_summary_Df}
-# uncomment when ready
+# More piping to yield per-year results of a world population
 summaryDf <- dietDf |>
      group_by(year) |>
       summarize(totalUnhealthyDiet=
@@ -238,7 +242,13 @@ summaryDf <- dietDf |>
          ) 
 ```
 
-My intention is to have two curves on the sample plot. While there are many ways to do this, `ggplot2` does this easily if we create an "untidy" data frame, with a single column for all vertical variables, and a new column which explains which measurement it is. Fortunately, `pivot_longer()` is available to make this easy! Notice that the new column `type` is converted to a factor in the chunk below. Ggplot() prefers this form for `color`, `fill` too.
+Our intention is to have two curves on the sample plot.
+
+While there are many ways to do this, `ggplot2` does this easily if we create an "untidy" data frame, with a single column for all vertical variables, and a new column which explains which measurement it is.
+
+Fortunately, `pivot_longer()` is available to make this easy! Notice that the new column `type` is converted to a factor in the chunk below.
+
+`ggplot()` prefers this form for `color`, `fill` too.
 
 ```{r going_longer_to_plot}
 # uncomment when ready
