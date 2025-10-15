@@ -1,0 +1,271 @@
+---
+title: "Affordable Healthy Diet: World View"
+format: pdf
+execute:
+       echo: true
+       eval: true
+---
+
+
+```{r, load_libraries, message=FALSE}
+library(tidyverse)
+library(dplyr)
+set.seed(5011)
+```
+## Introduction
+
+Welcome to this in-class assignment!  The EDA process begins with data.  After viewing the data, we begin to ask questions that the data might answer, with different risk levels.
+
+I found a dataset on WorldBank.org, a random slice of which is displayed below.
+
+```{r load_diet_data}
+file_name <- str_subset(dir(),"^F.+[.]csv$")
+dietDf <- read_csv(file_name,show_col_types = FALSE)
+dietDf |>
+    select("TIME_PERIOD",
+    "REF_AREA_LABEL",
+    "OBS_VALUE","INDICATOR_LABEL") |>
+    slice_sample(n=10)
+```
+
+Note that the measurements labels are:
+
+```{r display_measurement_types,echo=FALSE}
+dietDf |>
+distinct(INDICATOR_LABEL)
+```
+
+## Propose questions during EDA
+
+After you receive the dataset, your task is to determine questions to be answered by this dataset.  What kind of questions can this data answer?
+
+I have listed some questions here, as well as a risk level of obtaining an answer from this dataset.  We will not be answering the questions in this assignment.  However, we prepare the data for us to do so, and we present two preliminary plots.  
+
+- Do we know a lot about a healthy, affordable diet?  [MED RISK]
+- Per country, how many people can not afford the least expensive, healthy diet?  [LOW RISK]
+- What fraction of that country's population can not afford a healthy diet?  [LOW RISK]
+- Is this problem getting worse?  [MED RISK]
+- What about the world as a whole?  What fraction of the world's population can not afford a healthy diet?  [MED RISK]
+- On a world scale, is the problem getting worse? [MED RISK]
+
+Note that some of the questions have a medium risk level, as I have found NAs in the measurements.  So, the "presence of an absence" increases risk in some cases.  We will address the NA issure shortly.  
+
+
+## Tidy-ing
+
+Our next issue is to address the tidiness of the dataset.  Can two measurements be in the same column of a tidy dataframe? No!  
+
+
+In the following chunk, please `select()` only the following columns: 
+
+        - country = REF_AREA_LABEL,
+        - year = TIME_PERIOD,
+        - label= INDICATOR_LABEL,
+        - value = OBS_VALUE
+
+ In the same chunk, let's tidy the dataframe using `pivot_wider()` with these arguments:
+
+       - id_cols = c(country,year),
+       - names_from = label,
+       - values_from = value
+
+Make sure that you assign your changes to `dietDf`.
+
+```{r, tidy_diet_data1}
+# tidy_diet_data1
+dietDf <- dietDf |> select(country = REF_AREA_LABEL,
+         year = TIME_PERIOD,
+         label= INDICATOR_LABEL,
+         value = OBS_VALUE)
+
+dietDf <- pivot_wider(dietDf,
+                      id_cols = c(country,year),
+                      names_from = label,
+                      values_from = value)
+
+dietDf
+```
+
+Great, but more tidying to do!  In this chunk please do:
+
+- `mutate()` the column `year` to integer, 
+- `rename()` the percentage column to `percent`, 
+- `rename()` the `starts_with("Num")` column to `countPerCountry`
+- `mutate()` the `countPerCountry` and multiply by `1e+06`
+
+```{r, tidy_diet_data2}
+#tidy_diet_data2
+dietDf <- dietDf %>% 
+  mutate(year = as.numeric(year)) %>%
+  rename(percent = `Percentage of the population unable to afford a healthy diet (percent)`,
+         countPerCountry = `Number of people unable to afford a healthy diet (million)`) %>%
+  mutate(countPerCountry = countPerCountry * 1000000)
+
+dietDf
+
+```
+
+Please explore `dietDf` for tidyness and make any additional changes necessary.  After running all chunks, you may do this from the `console` pane, with `View(dietDf)`.
+
+Now, let's consider NAs in this dataset.  Consider these two results:
+
+```{r NAs1}
+# uncomment when ready
+sum(is.na(dietDf$countPerCountry))
+sum(is.na(dietDf$percent)&is.na(dietDf$countPerCountry))
+```
+
+Huh?  How can the `countPerCountry` have many NAs, yet the `percent` has none in common with it!?  It is clear that the `countPerCountry` values are not missing with malice.  If only we can find the population figures for countries per year, we could calculate the missing data!  Fortunately, other tables at WorldBank.org contain this information, and I have provided a second `*.csv` in the archive from that table.  In the following chunk, we load this `*.csv` and tidy it.  Please load this file into the tibble `pop`.  Use `pivot_longer()` to create a `year` column, with values from the column headers, and  `pop` column, with population figures. Please make sure that `pop$year` has a numerical type.  Also, please make sure that `pop$pop` is a numerical measurement, so use `str_replace()` to find and replace the "k"s, "M"s, and "B"s.  After that, it may be converted using `as.integer()`.
+
+```{r load_and_tidy_pop_data}
+# load_and_tidy_pop_data
+file_name <- str_subset(dir(),"^pop.+[.]csv$")
+pop <- read_csv(file_name,
+show_col_types=FALSE)
+# please complete this chunk below
+pop <- pop %>%
+  pivot_longer(cols = - country,
+               names_to = "year",
+               values_to = "pop") %>%
+  mutate(year=as.numeric(year)) %>%
+  mutate(pop = str_replace(pop, "M","e6"),
+         pop = str_replace(pop, "k", "e3")) %>%
+  
+  mutate(pop = as.numeric(pop))
+
+pop
+```
+It will be easier to work with one dataframe, rather than 2.  In the following chunk, please `left_join()` `dietDf`(left) with `pop`(right).
+
+```{r left_join_to_pop_data}
+#left_join_to_pop_data
+
+dietDf <- left_join(dietDf,pop, by = c("country", "year"))
+
+dietDf
+
+```
+
+Nice work so far!  We have all the data we need in one table.  Our current goal is to remove as many of the NAs as the data allows.  In the following chunk, use `mutate()` to create a new column `my_count`, found by multiplying `pop` with `percent/100`.  Since `pop` also has NAs, this new column will have NAs too.
+
+```{r calc_my_count_~_pop_data_and_percent}
+# calc_my_count_~_pop_data_and_percent
+
+dietDf <- dietDf %>% mutate(my_count = pop * (percent/100))
+```
+
+The following chunk gives us hope.  Below I calculate the number of rows where both `my_count` and `countPerCountry` are NAs.
+
+```{r both_NAs?}
+# uncomment when ready
+ sum(is.na(dietDf$my_count) & is.na(dietDf$countPerCountry))
+```
+
+Super lucky!  There is no overlap between the NAs, and we will be able to replace all the NAs in `countPerCounty` with values from `my_count`.  Please do that below.  At the end of the chunk, please check again for NAs in the amended column `countPerCountry`.
+
+```{r replace_NAs_in_countPerCountry_with_calculated}
+# replace NAs in `countPerCountry`, then check for NAs in same
+dietDf <- dietDf %>% mutate(countPerCountry = if_else(is.na(countPerCountry), my_count, countPerCountry))
+
+sum(is.na(dietDf$countPerCountry))
+```
+
+ One more step for NA replacement! Please amend the column `pop`, which has NAs, with values calculated from `100*countPerCountry` / `percent`.  At the end, please recheck for NAs.
+
+```{r replace_NAs_in_pop_with_calculated}
+#replace_NAs_in_pop_with_calculated
+dietDf <- dietDf %>% mutate(pop = if_else(is.na(pop), (100*countPerCountry/percent),pop))
+
+sum(is.na(dietDf$pop))
+
+```
+
+Super job!  Now that our data is tidy and wrangled, we may begin our EDA.  Below, please use `facet_wrap(~year,nrow=1)` to display a sequence of vertical boxplots of `percent`, indexed by `year`.
+
+```{r, boxplots_by_year}
+# boxplots_facetted_by_year
+# assuming your tibble is called pop_data
+ggplot(dietDf, aes(x = factor(year), y = percent)) +
+  geom_boxplot(fill = "green", color = "red", alpha = 0.5) +
+  facet_wrap(~year, nrow = 1) +
+  labs(
+    title = "Distribution of Percent by Year",
+    x = "Year",
+    y = "Percent"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    strip.text = element_text(size = 10, face = "bold"),
+    axis.text.x = element_blank(),  # optional: hides x-axis text since facets already label them
+    panel.spacing = unit(1, "lines")
+  )
+
+
+```
+
+Below, please provide two sentences summarizing your observations about the boxplots.  What are the differences, if anything, by year?  Are there outliers, and if so, when?
+
+------>
+
+So it appears that the distribution of percent remain quite consistent across all the years, showing similar statistical values (medians, spreads, etc)
+
+Most countries cluster around moderate percent values, although there are quite a few outliers for each year. 
+
+<------>
+
+In the following chunk, I create  `summaryDf`.  This yields per-year results of world population, `worldpop`, and the fraction of the globe's population which can not afford the least expensive healthy diet, `fracWorldPop`.
+
+```{r make_summary_Df}
+# uncomment when ready
+summaryDf <- dietDf |>
+     group_by(year) |>
+      summarize(totalUnhealthyDiet=
+       sum(countPerCountry),
+        worldpop=sum(pop,na.rm=TRUE),
+         fracWorldPop=totalUnhealthyDiet/worldpop
+         ) 
+```
+My intention is to have two curves on the sample plot. While there are many ways to do this, `ggplot2` does this easily if we create an "untidy" data frame, with a single column for all vertical variables, and a new column which explains which measurement it is.  Fortunately, `pivot_longer()` is available to make this easy!  Notice that the new column `type` is converted to a factor in the chunk below.  Ggplot() prefers this form for `color`, `fill` too.
+
+```{r going_longer_to_plot}
+# uncomment when ready
+plot1Df <- summaryDf |>
+    select(-fracWorldPop) |>
+    pivot_longer(cols=-1,
+    names_to="type",
+    values_to = "people"
+    ) |>
+        mutate(type=as.factor(type))
+```
+
+Finally! we are ready to create the plot with two, labeled curves.  `Ggplot()` makes this a snap!  Note that the column `type` determines the point and line color, and a legend is generated automatically.
+
+```{r plot_summary,message=FALSE}
+# uncomment when ready
+plot1Df |>
+     ggplot(aes(x=year,y=people,color=type))+
+      geom_point() + geom_smooth()
+```
+
+Please provide a two sentence comment on the plot above, to let the reader know about important observations.
+
+----->
+
+The Global population has shown a steady growth from 2017 to 2024.
+However, the total Unhealthy diet gradually declines over the same time period.
+Suggesting that the percentage of people with unhealthy diet is decreasing graudually.
+
+<----->
+
+For our final chunk, please plot `fracWorldPop` vs. `year`.  Choose a vertical axis label:"fraction of people who can't afford healthy diet" , a horizontal axis label "year".
+
+```{r plot_summary2,message=FALSE}
+# plot_fracWorldPop vs. year
+```
+
+As always, provide a brief comment on your findings from this plot below.
+
+------>
+
+
+<----->
